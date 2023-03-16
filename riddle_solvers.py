@@ -28,6 +28,9 @@ from urllib.parse import quote_plus
 import rsa
 import json
 
+import base64, re 
+
+
 def solve(str):
     input_string=int(str, 2);
  
@@ -107,42 +110,47 @@ def captcha_solver(question):
 
     end = time.time()
 
-def pcap_solver(question):
-    start = time.time()
-    message_bytes = base64.b64decode(question)
-    pcap_txt = message_bytes.decode("unicode_escape")
 
-    patterns= [r'\w+']
-    extracted_data = " "
-    temp_list = []
+def encodeb64(plaindata: str) -> str:
+    unidata = plaindata.encode('utf-8')
+    return base64.b64encode(unidata)
+
+def decodeb64(hiddendata: str) -> str:
+    databytes = base64.b64decode(hiddendata)
+    return databytes.decode("unicode_escape")
+
+def pcap_solver(question):
+    pcap_txt = decodeb64(question)
+
+    patterns= [r'\w+'] 
+    extracted_data =  ""
     for p in patterns:
         extracted_data = re.findall(p, pcap_txt)
 
     ordered_message = ["1"]
     counter = 1
     while(True):
-        count = str(counter)
-        unicount = count.encode('utf-8')
-        b64count = base64.b64encode(unicount)
+        b64count = encodeb64(str(counter))
         asciicount = b64count.decode("unicode_escape")
         asciicount = asciicount.replace("=", "")
-        if asciicount in extracted_data:
-            ordered_message.insert(extracted_data.index(asciicount), extracted_data[extracted_data.index(asciicount)+1])
+        if asciicount in extracted_data[0:int(0.25*len(extracted_data))-1]:
+            ordered_message.insert(extracted_data.index(asciicount), decodeb64(extracted_data[extracted_data.index(asciicount)+1]+"=="))
+            counter += 1
+        elif asciicount in extracted_data[int(0.25*len(extracted_data))-1:int(0.5*len(extracted_data))-1]:
+            ordered_message.insert(extracted_data.index(asciicount), decodeb64(extracted_data[extracted_data.index(asciicount)+1]+"=="))
+            counter += 1
+        elif asciicount in extracted_data[int(0.5*len(extracted_data))-1:int(0.75*len(extracted_data))-1]:
+            ordered_message.insert(extracted_data.index(asciicount), decodeb64(extracted_data[extracted_data.index(asciicount)+1]+"=="))
+            counter += 1
+        elif asciicount in extracted_data[int(0.75*len(extracted_data))-1:len(extracted_data)-1]:
+            ordered_message.insert(extracted_data.index(asciicount), decodeb64(extracted_data[extracted_data.index(asciicount)+1]+"=="))
             counter += 1
         else:
             break
 
     ordered_message.pop(0)
-    found_data = []
-    for b64data in ordered_message:
-        unidata = base64.b64decode(b64data+"==")
-        data = unidata.decode("unicode_escape")
-        found_data.append(data)
 
-
-    end = time.time()
-    print(end - start)
-    return "".join(found_data)
+    return "".join(ordered_message)
 
 def server_solver(question):
     def decode_base64url(str):
