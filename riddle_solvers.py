@@ -30,6 +30,15 @@ import json
 
 import base64, re 
 
+import json
+import base64, re
+from Crypto.PublicKey import RSA
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256
+from urllib.parse import quote_plus
+import timeit
+
+
 
 def solve(str):
     input_string=int(str, 2);
@@ -152,57 +161,49 @@ def pcap_solver(question):
 
     return "".join(ordered_message)
 
-def server_solver(question):
-    def decode_base64url(str):
-        return base64.urlsafe_b64decode(str + '=' * (4 - len(str) % 4))
+def pack_bigint(i):
+    b = bytearray()
+    while i:
+        b.append(i & 0xFF)
+        i >>= 8
+    return b[::-1]
 
-    def generate_key():
-        (public_key,private_key) = rsa.newkeys(2048,poolsize=8)
-        return private_key, public_key
-
-    def pack_bigint(i):
-        b = bytearray()
-        while i:
-            b.append(i & 0xFF)
-            i >>= 8
-        return b[::-1]
-    
-    def generate_header_payload(header, payload,pubkey):
-        n=base64.urlsafe_b64encode(pack_bigint(pubkey.n)).decode('utf-8').rstrip('=')
-        e=base64.urlsafe_b64encode(pack_bigint(pubkey.e)).decode('utf-8').rstrip('=')
-
-        #TOdo: edit header data 
-        headerAndPayload = str(base64.urlsafe_b64encode(('{"kid":"'+header['jwk']['kid']+'",'
+def prepare_header_payload(header, payload, public_key):
+    n = base64.urlsafe_b64encode(pack_bigint(public_key.n)).decode('utf-8').rstrip('=')
+    e = base64.urlsafe_b64encode(pack_bigint(public_key.e)).decode('utf-8').rstrip('=')
+    message = str(base64.urlsafe_b64encode(('{"kid":"'+header['jwk']['kid']+'",'
                                             '"typ":"jwt",'
                                             '"alg":"RS256",'            
                                             '"jwk":{"kty":"RSA",'
-                                            '"e":"'+e+'",'
-                                            '"kid":"'+header['jwk']['kid']+'",'
+                                            '"e":"' + e + '",'
+                                            '"kid":"' + header['jwk']['kid'] + '",'
                                             '"n":"'+n+'"}}').encode()))[2:-1].replace("=","").encode('utf-8')
-        headerAndPayload = headerAndPayload+b"."+str(base64.urlsafe_b64encode(payload))[2:-1].replace("=","").encode('utf-8')
-        headerAndPayload = headerAndPayload
-        return headerAndPayload
-    def generate_signature(firstpart,privkey):
-        signature = rsa.sign(firstpart,privkey,'SHA-256')
-        signatureEnc = str(base64.urlsafe_b64encode(signature))[2:-1].replace("=","").encode('utf-8')
-        return signatureEnc
+    message = message+b"."+str(base64.urlsafe_b64encode(payload))[2:-1].replace("=","").encode('utf-8')
+    return message
 
-    def create_token(headerAndPayload,sign):
-        token = (headerAndPayload+b"."+sign).decode('utf-8').rstrip('=')
-        token = quote_plus(token)
-        return token
+def server_solver(question):
+    arr = question.split('.')
+    header = json.loads(base64.urlsafe_b64decode(arr[0] + '==='))
+    payload = json.loads(base64.urlsafe_b64decode(arr[1] + '==='))
 
-    token = question
-    token_splitted = token.split(".")
-    token_data = json.loads(decode_base64url(token_splitted[1]))
-    header_data = json.loads(decode_base64url(token_splitted[0]))
-    token_data['admin'] = 'true'
-    payload = json.dumps(token_data).encode('utf-8')
-    header = header_data
-    (privatekey,publickey) = generate_key()
-    firstPart = generate_header_payload(header, payload,publickey)
-    signature = generate_signature(firstPart,privatekey)
-    token = create_token(firstPart,signature)
+    payload['admin'] = 'true'
+    payload = json.dumps(payload).encode('utf-8')
+
+
+    key = RSA.import_key(open('private.key').read())
+
+    message = prepare_header_payload(header, payload, key)
+
+    h = SHA256.new(message)
+
+    signer = pkcs1_15.new(key)
+
+    signature = signer.sign(h)
+
+    signature = str(base64.urlsafe_b64encode(signature))[2:-1].replace("=","").encode('utf-8')
+
+    token = (message + b"." + signature).decode('utf-8').rstrip('=')
+    token = quote_plus(token)
     return token
 
 if __name__ == "__main__":
