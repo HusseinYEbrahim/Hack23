@@ -188,8 +188,8 @@ def submission_inference(riddle_solvers, mp, orientation):
                 mp[new_obv[0][1]][new_obv[0][0]][0] = 0
 
         if not response.json()['riddleType'] == None:
-            print(response.json()['riddleType'])
-            print(response.json()['riddleQuestion'])
+            #print(response.json()['riddleType'])
+            #print(response.json()['riddleQuestion'])
             riddle_nameee = response.json()['riddleType']
             #solution = riddle_solvers[response.json()['riddleType']](response.json()['riddleQuestion'])
             if(response.json()['riddleType'] == 'server'):
@@ -201,6 +201,10 @@ def submission_inference(riddle_solvers, mp, orientation):
             end = timeit.default_timer()
 
             riddle_taken = 0
+            rescued = 0
+            for i in range(4):
+                if(solved[i] == 1):
+                    rescued += 1
             if(response.json()['rescuedItems'] != rescued):
                 riddle_taken = 1
 
@@ -277,7 +281,6 @@ if __name__ == "__main__":
     steps = 330
     mod = 1
 
-    rescued = 0
 
     key = RSA.import_key(open('private.key').read())
     
@@ -298,6 +301,12 @@ if __name__ == "__main__":
         mp[9][i][1] = 1 
 
     submission_inference(riddle_solvers, mp=mp, orientation=curr_orientation)
+
+    rescued = 0
+
+    for i in range(4):
+        if(solved[i] == 1):
+            rescued += 1
 
     modifier = rescued * 250
 
