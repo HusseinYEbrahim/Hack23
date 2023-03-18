@@ -209,6 +209,7 @@ def submission_inference(riddle_solvers, mp, orientation):
                 riddle_taken = 1
 
             rescued = response.json()['rescuedItems']
+            print(rescued)
 
             if(riddle_nameee == 'captcha'):
                 times[0] = end - start
@@ -314,6 +315,7 @@ if __name__ == "__main__":
 
     for i in range(4):
         print(solved[i])
+
 
 
     time_sum = (modifier * rescued)/steps
