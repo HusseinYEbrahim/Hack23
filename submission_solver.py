@@ -111,7 +111,7 @@ def submission_inference(riddle_solvers, mp, orientation):
 
     response = requests.post(f'http://{server_ip}:5000/init', json={"agentId": agent_id})
 
-    print(response.text())
+    print(response.json().text() )
 
 
     obv = get_obv_from_response(response)
