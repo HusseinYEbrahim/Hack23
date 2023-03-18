@@ -192,8 +192,8 @@ def submission_inference(riddle_solvers, mp, orientation):
             print(response.json()['riddleQuestion'])
             riddle_nameee = response.json()['riddleType']
             #solution = riddle_solvers[response.json()['riddleType']](response.json()['riddleQuestion'])
-            if(response.json()['riddle_type'] == 'server'):
-                solution = riddle_solvers[response.json()['riddle_type']](response.json()['riddle_question'], key)
+            if(response.json()['riddleType'] == 'server'):
+                solution = riddle_solvers[response.json()['riddleType']](response.json()['riddle_question'], key)
             else:
                 solution = riddle_solvers[response.json()['riddleType']](response.json()['riddleQuestion'])
             start = timeit.default_timer()
