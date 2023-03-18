@@ -120,11 +120,31 @@ def submission_inference(riddle_solvers, mp, orientation):
 
     stack = []
 
+    t = 0
+
     while(True):
         # Select an action
         state_0 = obv
+
+        if(all_done(obv[1])):
+            cnt[obv[0][1]][obv[0][0]] += 1
+
+        if(all_done(obv[1])):
+            if(cnt[obv[0][1]][obv[0][0]] >= 10):
+                steps = t
+                mod = 0.8
+                print("Ya regala ana tuuht")
+                response = requests.post(f'http://{server_ip}:5000/leave', json={"agentId": agent_id})
+                break # Stop Agent
+
+
+
         action, action_index = select_action(state= obv, mp=mp, curr_orientation=curr_orientation) # Random action
+        
+        t += 1
+
         response = move(agent_id, action)
+
         if not response.status_code == 200:
             #print(response)
             break
@@ -170,12 +190,34 @@ def submission_inference(riddle_solvers, mp, orientation):
         if not response.json()['riddleType'] == None:
             print(response.json()['riddleType'])
             print(response.json()['riddleQuestion'])
+            riddle_nameee = response.json()['riddleType']
             #solution = riddle_solvers[response.json()['riddleType']](response.json()['riddleQuestion'])
             if(response.json()['riddle_type'] == 'server'):
                 solution = riddle_solvers[response.json()['riddle_type']](response.json()['riddle_question'], key)
             else:
                 solution = riddle_solvers[response.json()['riddleType']](response.json()['riddleQuestion'])
+            start = timeit.default_timer()
             response = solve(agent_id, response.json()['riddleType'], solution)
+            end = timeit.default_timer()
+
+            riddle_taken = 0
+            if(response.json()['rescuedItems'] != rescued):
+                riddle_taken = 1
+
+            rescued = response.json()['rescuedItems']
+
+            if(riddle_nameee == 'captcha'):
+                times[0] = end - start
+                solved[0] = riddle_taken
+            elif(riddle_nameee == 'cipher'):
+                times[1] = end - start
+                solved[1] = riddle_taken
+            elif(riddle_nameee == 'server'):
+                times[2] = end - start
+                solved[2] = riddle_taken
+            else:
+                times[3] = end - start
+                solved[3] = riddle_taken
             new_obv = get_obv_from_response(response)
         
         if(stacked == True and new_obv != obv):
@@ -190,11 +232,18 @@ def submission_inference(riddle_solvers, mp, orientation):
             stack.append([new_obv[0][1], new_obv[0][0]])
 
         
-        if all_done(obv[1]) or obv[0][0] == 9 and obv[0][1] == 9:
-            print("Ana Escaped")
+        if all_done(obv[1]) and obv[0][0] == 9 and obv[0][1] == 9:
+            print("Ana 5aragt mn el map ya Regala")
+            stesp = t
+            mod = 1
             response = requests.post(f'http://{server_ip}:5000/leave', json={"agentId": agent_id})
             print(response.text, response.status_code)
             break # Stop Agent
+
+        if all_done(obv[1]) and stacked == True:
+            print("Ana 5atagt mn el map ya Regala")
+            mod = 1
+            steps = t
             if(len(stack) > 0):
                 stack.pop()
             while len(stack) > 0:
@@ -205,6 +254,7 @@ def submission_inference(riddle_solvers, mp, orientation):
 
             response = requests.post(f'http://{server_ip}:5000/leave', json={"agentId": agent_id})
             break # Stop Agent
+
 
         
         
@@ -219,11 +269,24 @@ def submission_inference(riddle_solvers, mp, orientation):
 
 
 if __name__ == "__main__":
+
+
+    scores = [10,20,30,40]
+    solved = [0, 0, 0, 0]
+    times = [0.1325+0.0014, 0.01+0.0014, 0.01+0.0014, 0.01+0.0014]
+    steps = 330
+    mod = 1
+
+    rescued = 0
+
+    key = RSA.import_key(open('private.key').read())
     
     agent_id = "4RmJ8cVbNp"
     riddle_solvers = {'cipher': cipher_solver, 'captcha': captcha_solver, 'pcap': pcap_solver, 'server': server_solver}
 
     mp = [ [ [ None for y in range( 4 ) ] for x in range( 11 ) ] for z in range(11)]
+
+    cnt = [ [ 0 for x in range( 11 ) ] for z in range(11)]
 
     curr_orientation = 'E'
 
@@ -235,4 +298,17 @@ if __name__ == "__main__":
         mp[9][i][1] = 1 
 
     submission_inference(riddle_solvers, mp=mp, orientation=curr_orientation)
+
+    modifier = rescued * 250
+
+    print("El Riddles ly solved")
+
+    for i in range(4):
+        print(solved[i])
+
+
+    time_sum = (modifier * rescued)/steps
+    for i in range(len(scores)):
+        time_sum += 0.01*(solved[i]*scores[i]/times[i])
+    print(mod*time_sum)
     
